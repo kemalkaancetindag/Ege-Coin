@@ -2,30 +2,35 @@ package blockchain
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/gob"
 	"log"
 )
 
 type Block struct {
 	//Block tipi olusturuyoruz (Obje gibi)
-	Hash     []byte
-	Data     []byte
-	PrevHash []byte
-	Nonce    int
+	Hash         []byte
+	Transactions []*Transaction
+	PrevHash     []byte
+	Nonce        int
 }
 
-/*
-// Block icin hash uretiyoruz
-func (b *Block) DeriveHash() {
-	info := bytes.Join([][]byte{b.Data, b.PrevHash}, []byte{}) // Byte slicelarini birlestirmek icin kullabiyoruz
-	hash := sha256.Sum256(info)
-	b.Hash = hash[:]
-}
-*/
+func (b *Block) HashTransactions() []byte {
+	var txHashes [][]byte
+	var txHash [32]byte
 
-func CreateBlock(data string, prevhash []byte) *Block {
+	for _, tx := range b.Transactions {
+		txHashes = append(txHashes, tx.ID)
+	}
+
+	txHash = sha256.Sum256(bytes.Join(txHashes, []byte{}))
+
+	return txHash[:]
+}
+
+func CreateBlock(txs []*Transaction, prevhash []byte) *Block {
 	//Block pointeri olusturuyoruz ardindan block icin hash olusturuyoruz ve blocku derefer edip donuyoruz
-	block := &Block{[]byte{}, []byte(data), prevhash, 0}
+	block := &Block{[]byte{}, txs, prevhash, 0}
 	pow := NewProof(block)
 	nonce, hash := pow.Run()
 
@@ -36,8 +41,8 @@ func CreateBlock(data string, prevhash []byte) *Block {
 }
 
 //Baslangic blockumuzu olusturuyoruz
-func Genesis() *Block {
-	return CreateBlock("Genesis", []byte{})
+func Genesis(coinbase *Transaction) *Block {
+	return CreateBlock([]*Transaction{coinbase}, []byte{})
 }
 
 func (b *Block) Serialize() []byte {
